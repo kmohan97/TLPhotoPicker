@@ -573,12 +573,6 @@ extension TLPhotosPickerViewController {
             self.delegate?.photoPickerDidCancel()
             self.didCancel?()
         }
-        if shouldDismiss {
-            self.dismiss(animated: true) { [weak self] in
-                self?.delegate?.dismissComplete()
-                self?.dismissCompletion?()
-            }
-        }
     }
     
     private func canSelect(phAsset: PHAsset) -> Bool {
