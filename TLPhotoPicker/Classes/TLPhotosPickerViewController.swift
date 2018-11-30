@@ -142,7 +142,7 @@ open class TLPhotosPickerViewController: UIViewController {
     @IBOutlet open var indicator: UIActivityIndicatorView!
     @IBOutlet open var popArrowImageView: UIImageView!
     @IBOutlet open var customNavItem: UINavigationItem!
-    @IBOutlet open var doneButton: UIBarButtonItem!
+    @IBOutlet open var doneButton: UIButton?
     @IBOutlet open var cancelButton: UIBarButtonItem!
     @IBOutlet open var navigationBarTopConstraint: NSLayoutConstraint!
     @IBOutlet open var emptyView: UIView!
@@ -152,7 +152,13 @@ open class TLPhotosPickerViewController: UIViewController {
     
     public weak var delegate: TLPhotosPickerViewControllerDelegate? = nil
     public weak var logDelegate: TLPhotosPickerLogDelegate? = nil
-    open var selectedAssets = [TLPHAsset]()
+    public var selectedAssets = [TLPHAsset]() {
+        didSet {
+            let title = selectedAssets.count > 0 ? "Add \(selectedAssets.count) selected image" : self.configure.doneTitle
+            doneButton?.isEnabled = selectedAssets.count > 0
+            doneButton?.setTitle(title, for: .normal)
+        }
+    }
     public var configure = TLPhotosPickerConfigure()
     public var customDataSouces: TLPhotopickerDataSourcesProtocol? = nil
     
@@ -456,7 +462,8 @@ extension TLPhotosPickerViewController {
         }
     }
     
-    private func updateTitle() {
+    
+    fileprivate func updateTitle() {
         guard self.focusedCollection != nil else { return }
         self.titleLabel.text = self.focusedCollection?.title
         updatePresentLimitedLibraryButton()
