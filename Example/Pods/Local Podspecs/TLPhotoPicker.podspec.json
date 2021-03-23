@@ -28,5 +28,6 @@
       "TLPhotoPicker/Classes/*.xib"
     ]
   },
-  "resources": "TLPhotoPicker/TLPhotoPickerController.bundle"
+  "resources": "TLPhotoPicker/TLPhotoPickerController.bundle",
+  "swift_version": "4.2"
 }
