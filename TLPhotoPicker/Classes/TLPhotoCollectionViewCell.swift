@@ -49,8 +49,12 @@ open class TLPhotoCollectionViewCell: UICollectionViewCell {
             self.selectedView?.layer.borderColor = self.configure.selectedColor.cgColor
             self.orderBgView?.backgroundColor = self.configure.selectedColor
             self.videoIconImageView?.image = self.configure.videoIcon
+            self.orderBgView?.isHidden = self.configure.singleSelectedMode
+            self.orderLabel?.isHidden = self.configure.singleSelectedMode
         }
     }
+    
+    open internal(set) var asset: PHAsset?
     
     @objc open var isCameraCell = false
     
@@ -139,6 +143,7 @@ open class TLPhotoCollectionViewCell: UICollectionViewCell {
             player.pause()
             self.player = nil
         }
+        self.livePhotoView?.livePhoto = nil
         self.livePhotoView?.isHidden = true
         self.livePhotoView?.stopPlayback()
         self.livePhotoView?.delegate = nil
@@ -169,8 +174,6 @@ open class TLPhotoCollectionViewCell: UICollectionViewCell {
     override open func prepareForReuse() {
         super.prepareForReuse()
         stopPlay()
-        self.livePhotoView?.isHidden = true
-        self.livePhotoView?.delegate = nil
         self.durationView?.isHidden = true
         self.durationView?.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.6)
         self.selectedHeight?.constant = 10

@@ -44,16 +44,6 @@ install_framework()
     source="$(readlink "${source}")"
   fi
 
-  if [ -d "${source}/${BCSYMBOLMAP_DIR}" ]; then
-    # Locate and install any .bcsymbolmaps if present, and remove them from the .framework before the framework is copied
-    find "${source}/${BCSYMBOLMAP_DIR}" -name "*.bcsymbolmap"|while read f; do
-      echo "Installing $f"
-      install_bcsymbolmap "$f" "$destination"
-      rm "$f"
-    done
-    rmdir "${source}/${BCSYMBOLMAP_DIR}"
-  fi
-
   # Use filter instead of exclude so missing patterns don't throw errors.
   echo "rsync --delete -av "${RSYNC_PROTECT_TMP_FILES[@]}" --links --filter \"- CVS/\" --filter \"- .svn/\" --filter \"- .git/\" --filter \"- .hg/\" --filter \"- Headers\" --filter \"- PrivateHeaders\" --filter \"- Modules\" \"${source}\" \"${destination}\""
   rsync --delete -av "${RSYNC_PROTECT_TMP_FILES[@]}" --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "${source}" "${destination}"
@@ -119,8 +109,20 @@ install_dsym() {
   fi
 }
 
-# Used as a return value for each invocation of `strip_invalid_archs` function.
-STRIP_BINARY_RETVAL=0
+# Signs a framework with the provided identity
+code_sign_if_enabled() {
+  if [ -n "${EXPANDED_CODE_SIGN_IDENTITY:-}" -a "${CODE_SIGNING_REQUIRED:-}" != "NO" -a "${CODE_SIGNING_ALLOWED}" != "NO" ]; then
+    # Use the current code_sign_identity
+    echo "Code Signing $1 with Identity ${EXPANDED_CODE_SIGN_IDENTITY_NAME}"
+    local code_sign_cmd="/usr/bin/codesign --force --sign ${EXPANDED_CODE_SIGN_IDENTITY} ${OTHER_CODE_SIGN_FLAGS:-} --preserve-metadata=identifier,entitlements '$1'"
+
+    if [ "${COCOAPODS_PARALLEL_CODE_SIGN}" == "true" ]; then
+      code_sign_cmd="$code_sign_cmd &"
+    fi
+    echo "$code_sign_cmd"
+    eval "$code_sign_cmd"
+  fi
+}
 
 # Strip invalid architectures
 strip_invalid_archs() {
