@@ -754,7 +754,7 @@ extension TLPhotosPickerViewController: PHPhotoLibraryChangeObserver {
             }
             if let collection = self.focusedCollection {
                 self.collections[self.getfocusedIndex()] = collection
-                self.albumPopView.tableView.reloadRows(at: [IndexPath(row: getfocusedIndex(), section: 0)], with: .none)
+                self.albumPopView.tableView.reloadRows(at: [IndexPath(row: self.getfocusedIndex(), section: 0)], with: .none)
             }
         }
     }
