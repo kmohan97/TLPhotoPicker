@@ -14,6 +14,7 @@ import MobileCoreServices
 public protocol TLPhotosPickerViewControllerDelegate: class {
     func dismissPhotoPicker(withPHAssets: [PHAsset])
     func dismissPhotoPicker(withTLPHAssets: [TLPHAsset])
+    func shouldDismissPhotoPicker(withTLPHAssets: [TLPHAsset]) -> Bool
     func dismissComplete()
     func photoPickerDidCancel()
     func canSelectAsset(phAsset: PHAsset) -> Bool
@@ -26,6 +27,7 @@ extension TLPhotosPickerViewControllerDelegate {
     public func deninedAuthoization() { }
     public func dismissPhotoPicker(withPHAssets: [PHAsset]) { }
     public func dismissPhotoPicker(withTLPHAssets: [TLPHAsset]) { }
+    public func shouldDismissPhotoPicker(withTLPHAssets: [TLPHAsset]) -> Bool { return true }
     public func dismissComplete() { }
     public func photoPickerDidCancel() { }
     public func canSelectAsset(phAsset: PHAsset) -> Bool { return true }
@@ -447,6 +449,7 @@ extension TLPhotosPickerViewController {
     }
     
     private func dismiss(done: Bool) {
+        var shouldDismiss = true
         if done {
             #if swift(>=4.1)
             self.delegate?.dismissPhotoPicker(withPHAssets: self.selectedAssets.compactMap{ $0.phAsset })
@@ -454,6 +457,7 @@ extension TLPhotosPickerViewController {
             self.delegate?.dismissPhotoPicker(withPHAssets: self.selectedAssets.flatMap{ $0.phAsset })
             #endif
             self.delegate?.dismissPhotoPicker(withTLPHAssets: self.selectedAssets)
+            shouldDismiss = self.delegate?.shouldDismissPhotoPicker(withTLPHAssets: self.selectedAssets) ?? true
             self.completionWithTLPHAssets?(self.selectedAssets)
             #if swift(>=4.1)
             self.completionWithPHAssets?(self.selectedAssets.compactMap{ $0.phAsset })
@@ -463,6 +467,12 @@ extension TLPhotosPickerViewController {
         }else {
             self.delegate?.photoPickerDidCancel()
             self.didCancel?()
+        }
+        if shouldDismiss {
+            self.dismiss(animated: true) { [weak self] in
+                self?.delegate?.dismissComplete()
+                self?.dismissCompletion?()
+            }
         }
     }
     
