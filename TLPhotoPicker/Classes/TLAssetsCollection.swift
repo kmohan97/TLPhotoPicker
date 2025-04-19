@@ -142,7 +142,7 @@ public struct TLPHAsset {
     //convertLivePhotosToJPG
     // false : If you want mov file at live photos
     // true  : If you want png file at live photos ( HEIC )
-    public func tempCopyMediaFile(videoRequestOptions: PHVideoRequestOptions? = nil, imageRequestOptions: PHImageRequestOptions? = nil, exportPreset: String = AVAssetExportPresetHighestQuality, convertLivePhotosToJPG: Bool = false, progressBlock:((Double) -> Void)? = nil, completionBlock:@escaping ((URL,String) -> Void)) -> PHImageRequestID? {
+    public func tempCopyMediaFile(videoRequestOptions: PHVideoRequestOptions? = nil, imageRequestOptions: PHImageRequestOptions? = nil, exportPreset: String = AVAssetExportPresetHighestQuality, convertLivePhotosToJPG: Bool = false, folderName: String? = nil, progressBlock:((Double) -> Void)? = nil, completionBlock:@escaping ((URL,String) -> Void)) -> PHImageRequestID? {
         guard let phAsset = self.phAsset else { return nil }
         var type: PHAssetResourceType? = nil
         if phAsset.mediaSubtypes.contains(.photoLive) == true, convertLivePhotosToJPG == false {
@@ -153,11 +153,7 @@ public struct TLPHAsset {
         guard let resource = (PHAssetResource.assetResources(for: phAsset).filter{ $0.type == type }).first else { return nil }
         let fileName = resource.originalFilename
         var writeURL: URL? = nil
-        if #available(iOS 10.0, *) {
-            writeURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName)")
-        } else {
-            writeURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent("\(fileName)")
-        }
+        var writeURL: URL? = getFilePath(fileName: fileName, folderName: folderName)
         if (writeURL?.pathExtension.uppercased() == "HEIC" || writeURL?.pathExtension.uppercased() == "HEIF") && convertLivePhotosToJPG {
             if let fileName2 = writeURL?.deletingPathExtension().lastPathComponent {
                 writeURL?.deleteLastPathComponent()
@@ -217,6 +213,28 @@ public struct TLPHAsset {
         default:
             return nil
         }
+    }
+    
+    // to store in folderName in temp directory
+    public func getFilePath(fileName: String, folderName: String?) -> URL? {
+        var writeURL: URL? = nil
+        if #available(iOS 10.0, *) {
+            writeURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName)")
+        } else {
+            writeURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent("\(fileName)")
+        }
+        if let folderName = folderName {
+            let folderURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(folderName, isDirectory: true)
+            if !FileManager.default.fileExists(atPath: folderURL.path) {
+                do {
+                    try FileManager.default.createDirectory(atPath: folderURL.path, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.none])
+                } catch {
+                    return writeURL
+                }
+            }
+            writeURL = folderURL.appendingPathComponent("\(fileName)")
+        }
+        return writeURL
     }
     
     //Apparently, this method is not be safety to export a video.
