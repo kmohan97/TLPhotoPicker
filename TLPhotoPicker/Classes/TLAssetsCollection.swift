@@ -152,7 +152,6 @@ public struct TLPHAsset {
         }
         guard let resource = (PHAssetResource.assetResources(for: phAsset).filter{ $0.type == type }).first else { return nil }
         let fileName = resource.originalFilename
-        var writeURL: URL? = nil
         var writeURL: URL? = getFilePath(fileName: fileName, folderName: folderName)
         if (writeURL?.pathExtension.uppercased() == "HEIC" || writeURL?.pathExtension.uppercased() == "HEIF") && convertLivePhotosToJPG {
             if let fileName2 = writeURL?.deletingPathExtension().lastPathComponent {
