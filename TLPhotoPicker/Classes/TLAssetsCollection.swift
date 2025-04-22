@@ -175,6 +175,45 @@ public struct TLPHAsset {
                 }
             }
             return PHImageManager.default().requestExportSession(forVideo: phAsset, options: requestOptions, exportPreset: exportPreset) { (session, infoDict) in
+                
+                guard let session = session else {
+                    return
+                }
+
+                let avAsset = session.asset
+                guard let videoTrack = avAsset.tracks(withMediaType: .video).first else {
+                    return
+                }
+
+                let naturalSize = videoTrack.naturalSize
+                let preferredTransform = videoTrack.preferredTransform
+
+                // Determine the correct render size and transform
+                let videoComposition = AVMutableVideoComposition()
+                videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+
+                var renderSize = naturalSize
+                var transform = preferredTransform
+
+                // Get actual orientation by applying the transform
+                let transformedSize = naturalSize.applying(preferredTransform)
+                
+                // If the video was recorded in portrait mode, forcing final video to be in same renderSize dimension
+                if abs(transformedSize.width) < abs(transformedSize.height) {
+                    renderSize = CGSize(width: abs(transformedSize.width), height: abs(transformedSize.height))
+                }
+                videoComposition.renderSize =  renderSize
+                let instruction = AVMutableVideoCompositionInstruction()
+                instruction.timeRange = CMTimeRange(start: .zero, duration: avAsset.duration)
+
+                let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+                layerInstruction.setTransform(transform, at: .zero)
+
+                instruction.layerInstructions = [layerInstruction]
+                videoComposition.instructions = [instruction]
+                
+                session.videoComposition = videoComposition
+                
                 session?.outputURL = localURL
                 session?.outputFileType = AVFileType.mov
                 session?.exportAsynchronously(completionHandler: {
