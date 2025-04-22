@@ -214,9 +214,9 @@ public struct TLPHAsset {
                 
                 session.videoComposition = videoComposition
                 
-                session?.outputURL = localURL
-                session?.outputFileType = AVFileType.mov
-                session?.exportAsynchronously(completionHandler: {
+                session.outputURL = localURL
+                session.outputFileType = AVFileType.mov
+                session.exportAsynchronously(completionHandler: {
                     DispatchQueue.main.async {
                         completionBlock(localURL, mimetype)
                     }
