@@ -156,7 +156,7 @@ public struct TLPHAsset {
         if (writeURL?.pathExtension.uppercased() == "HEIC" || writeURL?.pathExtension.uppercased() == "HEIF") && convertLivePhotosToJPG {
             if let fileName2 = writeURL?.deletingPathExtension().lastPathComponent {
                 writeURL?.deleteLastPathComponent()
-                writeURL?.appendPathComponent("\(fileName2).jpg")
+                writeURL?.appendPathComponent("\(fileName2).jpeg")
             }
         }
         guard let localURL = writeURL,let mimetype = MIMEType(writeURL) else { return nil }
