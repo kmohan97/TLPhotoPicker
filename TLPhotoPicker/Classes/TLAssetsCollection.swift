@@ -142,7 +142,7 @@ public struct TLPHAsset {
     //convertLivePhotosToJPG
     // false : If you want mov file at live photos
     // true  : If you want png file at live photos ( HEIC )
-    public func tempCopyMediaFile(videoRequestOptions: PHVideoRequestOptions? = nil, imageRequestOptions: PHImageRequestOptions? = nil, exportPreset: String = AVAssetExportPresetHighestQuality, convertLivePhotosToJPG: Bool = false, progressBlock:((Double) -> Void)? = nil, completionBlock:@escaping ((URL,String) -> Void)) -> PHImageRequestID? {
+    public func tempCopyMediaFile(videoRequestOptions: PHVideoRequestOptions? = nil, imageRequestOptions: PHImageRequestOptions? = nil, exportPreset: String = AVAssetExportPresetHighestQuality, convertLivePhotosToJPG: Bool = false, folderName: String? = nil, progressBlock:((Double) -> Void)? = nil, completionBlock:@escaping ((URL,String) -> Void)) -> PHImageRequestID? {
         guard let phAsset = self.phAsset else { return nil }
         var type: PHAssetResourceType? = nil
         if phAsset.mediaSubtypes.contains(.photoLive) == true, convertLivePhotosToJPG == false {
@@ -152,16 +152,11 @@ public struct TLPHAsset {
         }
         guard let resource = (PHAssetResource.assetResources(for: phAsset).filter{ $0.type == type }).first else { return nil }
         let fileName = resource.originalFilename
-        var writeURL: URL? = nil
-        if #available(iOS 10.0, *) {
-            writeURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName)")
-        } else {
-            writeURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent("\(fileName)")
-        }
+        var writeURL: URL? = getFilePath(fileName: fileName, folderName: folderName)
         if (writeURL?.pathExtension.uppercased() == "HEIC" || writeURL?.pathExtension.uppercased() == "HEIF") && convertLivePhotosToJPG {
             if let fileName2 = writeURL?.deletingPathExtension().lastPathComponent {
                 writeURL?.deleteLastPathComponent()
-                writeURL?.appendPathComponent("\(fileName2).jpg")
+                writeURL?.appendPathComponent("\(fileName2).jpeg")
             }
         }
         guard let localURL = writeURL,let mimetype = MIMEType(writeURL) else { return nil }
@@ -180,9 +175,48 @@ public struct TLPHAsset {
                 }
             }
             return PHImageManager.default().requestExportSession(forVideo: phAsset, options: requestOptions, exportPreset: exportPreset) { (session, infoDict) in
-                session?.outputURL = localURL
-                session?.outputFileType = AVFileType.mov
-                session?.exportAsynchronously(completionHandler: {
+                
+                guard let session = session else {
+                    return
+                }
+
+                let avAsset = session.asset
+                guard let videoTrack = avAsset.tracks(withMediaType: .video).first else {
+                    return
+                }
+
+                let naturalSize = videoTrack.naturalSize
+                let preferredTransform = videoTrack.preferredTransform
+
+                // Determine the correct render size and transform
+                let videoComposition = AVMutableVideoComposition()
+                videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+
+                var renderSize = naturalSize
+                var transform = preferredTransform
+
+                // Get actual orientation by applying the transform
+                let transformedSize = naturalSize.applying(preferredTransform)
+                
+                // If the video was recorded in portrait mode, forcing final video to be in same renderSize dimension
+                if abs(transformedSize.width) < abs(transformedSize.height) {
+                    renderSize = CGSize(width: abs(transformedSize.width), height: abs(transformedSize.height))
+                }
+                videoComposition.renderSize =  renderSize
+                let instruction = AVMutableVideoCompositionInstruction()
+                instruction.timeRange = CMTimeRange(start: .zero, duration: avAsset.duration)
+
+                let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+                layerInstruction.setTransform(transform, at: .zero)
+
+                instruction.layerInstructions = [layerInstruction]
+                videoComposition.instructions = [instruction]
+                
+                session.videoComposition = videoComposition
+                
+                session.outputURL = localURL
+                session.outputFileType = AVFileType.mov
+                session.exportAsynchronously(completionHandler: {
                     DispatchQueue.main.async {
                         completionBlock(localURL, mimetype)
                     }
@@ -217,6 +251,28 @@ public struct TLPHAsset {
         default:
             return nil
         }
+    }
+    
+    // to store in folderName in temp directory
+    public func getFilePath(fileName: String, folderName: String?) -> URL? {
+        var writeURL: URL? = nil
+        if #available(iOS 10.0, *) {
+            writeURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName)")
+        } else {
+            writeURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent("\(fileName)")
+        }
+        if let folderName = folderName {
+            let folderURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(folderName, isDirectory: true)
+            if !FileManager.default.fileExists(atPath: folderURL.path) {
+                do {
+                    try FileManager.default.createDirectory(atPath: folderURL.path, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.none])
+                } catch {
+                    return writeURL
+                }
+            }
+            writeURL = folderURL.appendingPathComponent("\(fileName)")
+        }
+        return writeURL
     }
     
     //Apparently, this method is not be safety to export a video.
