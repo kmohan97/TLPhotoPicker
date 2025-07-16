@@ -142,7 +142,7 @@ public struct TLPHAsset {
     //convertLivePhotosToJPG
     // false : If you want mov file at live photos
     // true  : If you want png file at live photos ( HEIC )
-    public func tempCopyMediaFile(videoRequestOptions: PHVideoRequestOptions? = nil, imageRequestOptions: PHImageRequestOptions? = nil, exportPreset: String = AVAssetExportPresetHighestQuality, convertLivePhotosToJPG: Bool = false, folderName: String? = nil, progressBlock:((Double) -> Void)? = nil, completionBlock:@escaping ((URL,String) -> Void)) -> PHImageRequestID? {
+    public func tempCopyMediaFile(videoRequestOptions: PHVideoRequestOptions? = nil, imageRequestOptions: PHImageRequestOptions? = nil, exportPreset: String = AVAssetExportPresetHighestQuality, convertLivePhotosToJPG: Bool = false, folderName: String? = nil, isVideoTransformEnabled: Bool = true, progressBlock:((Double) -> Void)? = nil, completionBlock:@escaping ((URL,String) -> Void)) -> PHImageRequestID? {
         guard let phAsset = self.phAsset else { return nil }
         var type: PHAssetResourceType? = nil
         if phAsset.mediaSubtypes.contains(.photoLive) == true, convertLivePhotosToJPG == false {
@@ -174,53 +174,68 @@ public struct TLPHAsset {
                     progressBlock?(progress)
                 }
             }
-            return PHImageManager.default().requestExportSession(forVideo: phAsset, options: requestOptions, exportPreset: exportPreset) { (session, infoDict) in
-                
-                guard let session = session else {
-                    return
-                }
-
-                let avAsset = session.asset
-                guard let videoTrack = avAsset.tracks(withMediaType: .video).first else {
-                    return
-                }
-
-                let naturalSize = videoTrack.naturalSize
-                let preferredTransform = videoTrack.preferredTransform
-
-                // Determine the correct render size and transform
-                let videoComposition = AVMutableVideoComposition()
-                videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
-
-                var renderSize = naturalSize
-                var transform = preferredTransform
-
-                // Get actual orientation by applying the transform
-                let transformedSize = naturalSize.applying(preferredTransform)
-                
-                // If the video was recorded in portrait mode, forcing final video to be in same renderSize dimension
-                if abs(transformedSize.width) < abs(transformedSize.height) {
-                    renderSize = CGSize(width: abs(transformedSize.width), height: abs(transformedSize.height))
-                }
-                videoComposition.renderSize =  renderSize
-                let instruction = AVMutableVideoCompositionInstruction()
-                instruction.timeRange = CMTimeRange(start: .zero, duration: avAsset.duration)
-
-                let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
-                layerInstruction.setTransform(transform, at: .zero)
-
-                instruction.layerInstructions = [layerInstruction]
-                videoComposition.instructions = [instruction]
-                
-                session.videoComposition = videoComposition
-                
-                session.outputURL = localURL
-                session.outputFileType = AVFileType.mov
-                session.exportAsynchronously(completionHandler: {
-                    DispatchQueue.main.async {
-                        completionBlock(localURL, mimetype)
+            if isVideoTransformEnabled {
+                return PHImageManager.default().requestExportSession(forVideo: phAsset, options: requestOptions, exportPreset: exportPreset) { (session, infoDict) in
+                    
+                    guard let session = session else {
+                        return
                     }
-                })
+                    
+                    let avAsset = session.asset
+                    guard let videoTrack = avAsset.tracks(withMediaType: .video).first else {
+                        return
+                    }
+                    
+                    let naturalSize = videoTrack.naturalSize
+                    let preferredTransform = videoTrack.preferredTransform
+                    
+                    // Determine the correct render size and transform
+                    let videoComposition = AVMutableVideoComposition()
+                    videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+                    
+                    var renderSize = naturalSize
+                    var transform = preferredTransform
+                    
+                    // Get actual orientation by applying the transform
+                    let transformedSize = naturalSize.applying(preferredTransform)
+                    
+                    // If the video was recorded in portrait mode, forcing final video to be in same renderSize dimension
+                    if abs(transformedSize.width) < abs(transformedSize.height) {
+                        renderSize = CGSize(width: abs(transformedSize.width), height: abs(transformedSize.height))
+                    }
+                    videoComposition.renderSize =  renderSize
+                    let instruction = AVMutableVideoCompositionInstruction()
+                    instruction.timeRange = CMTimeRange(start: .zero, duration: avAsset.duration)
+                    
+                    let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+                    layerInstruction.setTransform(transform, at: .zero)
+                    
+                    instruction.layerInstructions = [layerInstruction]
+                    videoComposition.instructions = [instruction]
+                    
+                    session.videoComposition = videoComposition
+                    
+                    session.outputURL = localURL
+                    session.outputFileType = AVFileType.mov
+                    session.exportAsynchronously(completionHandler: {
+                        DispatchQueue.main.async {
+                            completionBlock(localURL, mimetype)
+                        }
+                    })
+                }
+            } else {
+                return PHImageManager.default().requestExportSession(forVideo: phAsset,
+                                                                     options: requestOptions,
+                                                                     exportPreset: exportPreset)
+                { (session, infoDict) in
+                    session?.outputURL = localURL
+                    session?.outputFileType = AVFileType.mov
+                    session?.exportAsynchronously(completionHandler: {
+                        DispatchQueue.main.async {
+                            completionBlock(localURL, mimetype)
+                        }
+                    })
+                }
             }
         case .image:
             var requestOptions = PHImageRequestOptions()
