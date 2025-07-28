@@ -53,13 +53,23 @@ extension TLPhotosPickerLogDelegate {
 
 
 public struct TLPhotosPickerConfigure {
-    public var defaultCameraRollTitle = "Camera Roll"
+    public var limitedPhotoAccessLabelTitle = "You have given access to limited photos, to view all photos from gallery"
+    public var changePermissionText = "Change permission"
+    public var accessPhotosTitle = "Flipkart” would like to access your photos"
+    public var allowPhotosSubtitle = "Please allow us to access your phone’s photo gallery for a better shopping experience"
+    public var selectMorePhotos = "Select More Photos.."
+    public var keepCurrentSelection = "Keep Current Selection"
+    public var allowFullAccessPhotos = "Allow Full Access"
+    public var defaultCameraRollTitle = "Recents"
     public var tapHereToChange = "Tap here to change"
     public var cancelTitle = "Cancel"
     public var doneTitle = "Select images"
-    public var emptyMessage = "No albums"
+    public var emptyMessage = "No Photos/ Videos to show"
     public var addImageTitle = "Add %@ selected image"
     public var addImagesTitle = "Add %@ selected images"
+    public var limitedAccessPopUpCount = "LimitedAccessPopUpCount"
+    public var maxLimitedAccessPopUpCount = 2
+    public var isAffliateFlow = false
     public var emptyImage: UIImage? = nil
     public var usedCameraButton = true
     public var usedPrefetch = false
@@ -115,11 +125,12 @@ open class TLPhotosPickerViewController: UIViewController {
     @IBOutlet open var cancelButton: UIBarButtonItem!
     @IBOutlet open var navigationBarTopConstraint: NSLayoutConstraint!
     @IBOutlet open var emptyView: UIView!
-    @IBOutlet open var emptyImageView: UIImageView!
     @IBOutlet open var emptyMessageLabel: UILabel!
+    @IBOutlet weak var manageLabel: UILabel!
     
     public weak var delegate: TLPhotosPickerViewControllerDelegate? = nil
     public weak var logDelegate: TLPhotosPickerLogDelegate? = nil
+    private var limitedAccessPopUpCount = 0
     public var selectedAssets = [TLPHAsset]() {
         didSet {
             DispatchQueue.main.async { [weak self] in
@@ -230,6 +241,8 @@ open class TLPhotosPickerViewController: UIViewController {
     
     override open func viewDidLoad() {
         super.viewDidLoad()
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleManageLabelTap(_:)))
+        manageLabel.addGestureRecognizer(tapGesture)
         makeUI()
         checkAuthorization()
     }
@@ -263,6 +276,10 @@ open class TLPhotosPickerViewController: UIViewController {
             return true
         }
         return false
+    }
+    
+    func handleLimitedAccessBanner(isHidden:Bool){
+        self.manageLabel.isHidden = isHidden
     }
 }
 
@@ -320,12 +337,26 @@ extension TLPhotosPickerViewController {
         self.doneButton?.layer.cornerRadius = 4.0
         self.doneButton?.isEnabled = false
         self.emptyView.isHidden = true
-        self.emptyImageView.image = self.configure.emptyImage
         self.emptyMessageLabel.text = self.configure.emptyMessage
         self.albumPopView.tableView.delegate = self
         self.albumPopView.tableView.dataSource = self
         self.popArrowImageView.image = TLBundle.podBundleImage(named: "pop_arrow")
         self.subTitleArrowImageView.image = TLBundle.podBundleImage(named: "arrow")
+        self.manageLabel.isHidden = true
+        if configure.isAffliateFlow{
+            self.view.backgroundColor = .black
+            self.emptyView.backgroundColor = .black
+            self.collectionView.backgroundColor = .black
+            self.manageLabel.textColor = .white
+            self.emptyMessageLabel.textColor = .white
+        } else{
+            self.view.backgroundColor = .white
+            self.emptyView.backgroundColor = .white
+            self.collectionView.backgroundColor = .white
+            self.manageLabel.textColor = .black
+            self.emptyMessageLabel.textColor = .black
+        }
+        self.setUpManageLabel()
         if #available(iOS 10.0, *), self.usedPrefetch {
             self.collectionView.isPrefetchingEnabled = true
             self.collectionView.prefetchDataSource = self
@@ -338,6 +369,84 @@ extension TLPhotosPickerViewController {
         }
         self.customDataSouces?.registerSupplementView(collectionView: self.collectionView)
     }
+    
+    func setUpManageLabel(){
+        let message = configure.limitedPhotoAccessLabelTitle + " "
+        let actionText = configure.changePermissionText
+        
+        let fullText = message + actionText
+        let attributedString = NSMutableAttributedString(string: fullText)
+        
+        // Only style the "Change permission" part
+        let manageRange = (fullText as NSString).range(of: actionText)
+        attributedString.addAttributes([
+            .foregroundColor: UIColor.green
+        ], range: manageRange)
+        
+        manageLabel.attributedText = attributedString
+        manageLabel.isUserInteractionEnabled = true
+    }
+    
+    @objc private func handleManageLabelTap(_ gesture: UITapGestureRecognizer) {
+        guard let label = gesture.view as? UILabel else { return }
+        let text = label.text ?? ""
+        let manageRange = (text as NSString).range(of: configure.changePermissionText)
+        
+        presentPhotoAccessBottomSheet()
+    }
+    
+    private func presentPhotoAccessPermissionAlert() {
+        let alertTitle = configure.accessPhotosTitle
+        let alertMessage = configure.allowPhotosSubtitle
+        let alert = UIAlertController(title: alertTitle, message: alertMessage, preferredStyle: .alert)
+        let selectMorePhotosAction = UIAlertAction(title: configure.selectMorePhotos, style: .default) {  _ in
+            PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: self)
+        }
+        let keepCurrentSelectionAction = UIAlertAction(title: configure.keepCurrentSelection, style: .cancel)
+        let allowFullAccessAction = UIAlertAction(title: configure.allowFullAccessPhotos, style: .default) { _ in
+            if let appSettings = URL(string: UIApplication.openSettingsURLString),
+               UIApplication.shared.canOpenURL(appSettings) {
+                UIApplication.shared.open(appSettings, options: [:], completionHandler: nil)
+            }
+        }
+        alert.addAction(selectMorePhotosAction)
+        alert.addAction(keepCurrentSelectionAction)
+        alert.addAction(allowFullAccessAction)
+        self.present(alert, animated: true, completion: nil)
+    }
+    
+    private func presentPhotoAccessBottomSheet() {
+        let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+
+        // Option 1: Select more photos
+        let selectMorePhotos = UIAlertAction(title: configure.selectMorePhotos, style: .default) { _ in
+            PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: self)
+        }
+
+        // Option 2: Open Settings
+        let changeSettings = UIAlertAction(title: configure.allowFullAccessPhotos, style: .default) { _ in
+            if let appSettings = URL(string: UIApplication.openSettingsURLString),
+               UIApplication.shared.canOpenURL(appSettings) {
+                UIApplication.shared.open(appSettings, options: [:], completionHandler: nil)
+            }
+        }
+
+        let cancel = UIAlertAction(title: configure.keepCurrentSelection, style: .cancel)
+
+        alert.addAction(selectMorePhotos)
+        alert.addAction(changeSettings)
+        alert.addAction(cancel)
+
+        if let popoverController = alert.popoverPresentationController {
+            popoverController.sourceView = self.view
+            popoverController.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.maxY, width: 0, height: 0)
+            popoverController.permittedArrowDirections = []
+        }
+
+        self.present(alert, animated: true, completion: nil)
+    }
+
+
     
     private func didChangeSelectedAssets() {
         let formatTitle = selectedAssets.count > 1 ? self.configure.addImagesTitle : self.configure.addImageTitle
@@ -384,11 +493,40 @@ extension TLPhotosPickerViewController {
     }
     
     private func initPhotoLibrary() {
-        if PHPhotoLibrary.authorizationStatus() == .authorized {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        switch status {
+        case .authorized:
+            // Full access: load all albums normally
             self.photoLibrary.delegate = self
             self.photoLibrary.fetchCollection(configure: self.configure)
-        }else{
-            //self.dismiss(animated: true, completion: nil)
+            
+        case .limited:
+            // Limited access: show only selected assets
+            self.photoLibrary.delegate = self
+            self.photoLibrary.fetchCollection(configure: self.configure)
+            handleLimitedAccessCase()
+            
+        default:
+            break
+        }
+    }
+    
+    private func showLimitedAccessPopUp(){
+        presentPhotoAccessPermissionAlert()
+        UserDefaults.standard.setValue(limitedAccessPopUpCount + 1, forKey: configure.limitedAccessPopUpCount)
+    }
+    
+    private func handleLimitedAccessCase(){
+        if let limitedAccessPopUpCount: Int = UserDefaults.standard.value(forKey: configure.limitedAccessPopUpCount) as? Int{
+            if  limitedAccessPopUpCount < configure.maxLimitedAccessPopUpCount {
+                self.limitedAccessPopUpCount = limitedAccessPopUpCount
+                handleLimitedAccessBanner(isHidden: true)
+                showLimitedAccessPopUp()
+            } else{
+                handleLimitedAccessBanner(isHidden: false)
+            }
+        } else{
+            showLimitedAccessPopUp()
         }
     }
     
@@ -509,7 +647,6 @@ extension TLPhotosPickerViewController: TLPhotoLibraryDelegate {
         let isEmpty = self.collections.count == 0
         self.subTitleStackView.isHidden = isEmpty
         self.emptyView.isHidden = !isEmpty
-        self.emptyImageView.isHidden = self.emptyImageView.image == nil
         self.indicator.stopAnimating()
         self.reloadTableView()
         self.registerChangeObserver()
@@ -1088,5 +1225,28 @@ extension TLPhotosPickerViewController: UITableViewDelegate,UITableViewDataSourc
         cell.accessoryType = getfocusedIndex() == indexPath.row ? .checkmark : .none
         cell.selectionStyle = .none
         return cell
+    }
+}
+
+
+extension UITapGestureRecognizer {
+    func didTapAttributedTextInLabel(label: UILabel, inRange targetRange: NSRange) -> Bool {
+        guard let attributedText = label.attributedText else { return false }
+        
+        let textStorage = NSTextStorage(attributedString: attributedText)
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(size: label.bounds.size)
+        
+        textContainer.lineFragmentPadding = 0
+        textContainer.lineBreakMode = label.lineBreakMode
+        textContainer.maximumNumberOfLines = label.numberOfLines
+        
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+        
+        let location = self.location(in: label)
+        let index = layoutManager.characterIndex(for: location, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+        
+        return NSLocationInRange(index, targetRange)
     }
 }
