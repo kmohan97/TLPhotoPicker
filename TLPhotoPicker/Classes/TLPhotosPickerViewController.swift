@@ -380,7 +380,7 @@ extension TLPhotosPickerViewController {
         // Only style the "Change permission" part
         let manageRange = (fullText as NSString).range(of: actionText)
         attributedString.addAttributes([
-            .foregroundColor: UIColor.green
+            .foregroundColor: UIColor.systemBlue
         ], range: manageRange)
         
         manageLabel.attributedText = attributedString
