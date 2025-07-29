@@ -402,7 +402,9 @@ extension TLPhotosPickerViewController {
         let selectMorePhotosAction = UIAlertAction(title: configure.selectMorePhotos, style: .default) {  _ in
             PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: self)
         }
-        let keepCurrentSelectionAction = UIAlertAction(title: configure.keepCurrentSelection, style: .cancel)
+        let keepCurrentSelectionAction = UIAlertAction(title: configure.keepCurrentSelection, style: .default) { _ in
+           
+        }
         let allowFullAccessAction = UIAlertAction(title: configure.allowFullAccessPhotos, style: .default) { _ in
             if let appSettings = URL(string: UIApplication.openSettingsURLString),
                UIApplication.shared.canOpenURL(appSettings) {
@@ -431,11 +433,13 @@ extension TLPhotosPickerViewController {
             }
         }
 
-        let cancel = UIAlertAction(title: configure.keepCurrentSelection, style: .cancel)
+        let keepCurrentSelectionAction = UIAlertAction(title: configure.keepCurrentSelection, style: .default) { _ in
+           
+        }
 
         alert.addAction(selectMorePhotos)
+        alert.addAction(keepCurrentSelectionAction)
         alert.addAction(changeSettings)
-        alert.addAction(cancel)
 
         if let popoverController = alert.popoverPresentationController {
             popoverController.sourceView = self.view
