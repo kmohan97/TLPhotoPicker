@@ -69,7 +69,7 @@ public struct TLPhotosPickerConfigure {
     public var addImagesTitle = "Add %@ selected images"
     public var limitedAccessPopUpCount = "LimitedAccessPopUpCount"
     public var maxLimitedAccessPopUpCount = 2
-    public var isAffliateFlow = false
+    public var isDarkTheme = false
     public var emptyImage: UIImage? = nil
     public var usedCameraButton = true
     public var usedPrefetch = false
@@ -343,7 +343,7 @@ extension TLPhotosPickerViewController {
         self.popArrowImageView.image = TLBundle.podBundleImage(named: "pop_arrow")
         self.subTitleArrowImageView.image = TLBundle.podBundleImage(named: "arrow")
         self.manageLabel.isHidden = true
-        if configure.isAffliateFlow{
+        if configure.isDarkTheme{
             self.view.backgroundColor = .black
             self.emptyView.backgroundColor = .black
             self.collectionView.backgroundColor = .black
@@ -378,10 +378,10 @@ extension TLPhotosPickerViewController {
         let attributedString = NSMutableAttributedString(string: fullText)
         
         // Only style the "Change permission" part
-        let manageRange = (fullText as NSString).range(of: actionText)
+        let actionRange = (fullText as NSString).range(of: actionText)
         attributedString.addAttributes([
             .foregroundColor: UIColor.systemBlue
-        ], range: manageRange)
+        ], range: actionRange)
         
         manageLabel.attributedText = attributedString
         manageLabel.isUserInteractionEnabled = true
@@ -414,7 +414,9 @@ extension TLPhotosPickerViewController {
         alert.addAction(selectMorePhotosAction)
         alert.addAction(keepCurrentSelectionAction)
         alert.addAction(allowFullAccessAction)
-        self.present(alert, animated: true, completion: nil)
+        DispatchQueue.main.async{ [weak self] in
+            self?.present(alert, animated: true, completion: nil)
+        }
     }
     
     private func presentPhotoAccessBottomSheet() {
@@ -446,8 +448,10 @@ extension TLPhotosPickerViewController {
             popoverController.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.maxY, width: 0, height: 0)
             popoverController.permittedArrowDirections = []
         }
-
-        self.present(alert, animated: true, completion: nil)
+        
+        DispatchQueue.main.async{ [weak self] in
+            self?.present(alert, animated: true, completion: nil)
+        }
     }
 
 
