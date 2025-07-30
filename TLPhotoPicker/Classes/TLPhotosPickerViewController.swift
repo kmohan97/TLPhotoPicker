@@ -388,10 +388,6 @@ extension TLPhotosPickerViewController {
     }
     
     @objc private func handleManageLabelTap(_ gesture: UITapGestureRecognizer) {
-        guard let label = gesture.view as? UILabel else { return }
-        let text = label.text ?? ""
-        let manageRange = (text as NSString).range(of: configure.changePermissionText)
-        
         presentPhotoAccessBottomSheet()
     }
     
@@ -1233,28 +1229,5 @@ extension TLPhotosPickerViewController: UITableViewDelegate,UITableViewDataSourc
         cell.accessoryType = getfocusedIndex() == indexPath.row ? .checkmark : .none
         cell.selectionStyle = .none
         return cell
-    }
-}
-
-
-extension UITapGestureRecognizer {
-    func didTapAttributedTextInLabel(label: UILabel, inRange targetRange: NSRange) -> Bool {
-        guard let attributedText = label.attributedText else { return false }
-        
-        let textStorage = NSTextStorage(attributedString: attributedText)
-        let layoutManager = NSLayoutManager()
-        let textContainer = NSTextContainer(size: label.bounds.size)
-        
-        textContainer.lineFragmentPadding = 0
-        textContainer.lineBreakMode = label.lineBreakMode
-        textContainer.maximumNumberOfLines = label.numberOfLines
-        
-        layoutManager.addTextContainer(textContainer)
-        textStorage.addLayoutManager(layoutManager)
-        
-        let location = self.location(in: label)
-        let index = layoutManager.characterIndex(for: location, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
-        
-        return NSLocationInRange(index, targetRange)
     }
 }
