@@ -53,8 +53,8 @@ extension TLPhotosPickerLogDelegate {
 
 
 public struct TLPhotosPickerConfigure {
-    public var limitedPhotoAccessLabelTitle = "You have given access to limited photos, to view all photos from gallery"
-    public var changePermissionText = "Change permission"
+    public var limitedPhotoAccessLabelTitle = "You have given access to limited photos, to view all photos from gallery."
+    public var changePermissionText = "Manage"
     public var accessPhotosTitle = "Flipkart” would like to access your photos"
     public var allowPhotosSubtitle = "Please allow us to access your phone’s photo gallery for a better shopping experience"
     public var selectMorePhotos = "Select More Photos.."
@@ -227,13 +227,13 @@ open class TLPhotosPickerViewController: UIViewController {
             PHPhotoLibrary.requestAuthorization { [weak self] status in
                 switch status {
                 case .authorized:
-                    self?.initPhotoLibrary()
+                    self?.initPhotoLibrary(isRequestAuthrizationFlow: true)
                 default:
                     self?.handleDeniedAlbumsAuthorization()
                 }
             }
         case .authorized:
-            self.initPhotoLibrary()
+            self.initPhotoLibrary(isRequestAuthrizationFlow: false)
         default:
             handleDeniedAlbumsAuthorization()
         }
@@ -261,7 +261,7 @@ open class TLPhotosPickerViewController: UIViewController {
     override open func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         if self.photoLibrary.delegate == nil {
-            initPhotoLibrary()
+            initPhotoLibrary(isRequestAuthrizationFlow: false)
         }
     }
     
@@ -279,7 +279,13 @@ open class TLPhotosPickerViewController: UIViewController {
     }
     
     func handleLimitedAccessBanner(isHidden:Bool){
-        self.manageLabel.isHidden = isHidden
+        if Thread.isMainThread{
+            self.manageLabel.isHidden = isHidden
+        } else{
+            DispatchQueue.main.async{ [weak self] in
+                self?.manageLabel.isHidden = isHidden
+            }
+        }
     }
 }
 
@@ -496,7 +502,7 @@ extension TLPhotosPickerViewController {
         self.albumPopView.setupPopupFrame()
     }
     
-    private func initPhotoLibrary() {
+    private func initPhotoLibrary(isRequestAuthrizationFlow: Bool) {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         switch status {
         case .authorized:
@@ -508,7 +514,10 @@ extension TLPhotosPickerViewController {
             // Limited access: show only selected assets
             self.photoLibrary.delegate = self
             self.photoLibrary.fetchCollection(configure: self.configure)
-            handleLimitedAccessCase()
+            handleLimitedAccessBanner(isHidden: false)
+            if !isRequestAuthrizationFlow{
+                handleLimitedAccessPopUpCase()
+            }
             
         default:
             break
@@ -520,14 +529,11 @@ extension TLPhotosPickerViewController {
         UserDefaults.standard.setValue(limitedAccessPopUpCount + 1, forKey: configure.limitedAccessPopUpCount)
     }
     
-    private func handleLimitedAccessCase(){
+    private func handleLimitedAccessPopUpCase(){
         if let limitedAccessPopUpCount: Int = UserDefaults.standard.value(forKey: configure.limitedAccessPopUpCount) as? Int{
             if  limitedAccessPopUpCount < configure.maxLimitedAccessPopUpCount {
                 self.limitedAccessPopUpCount = limitedAccessPopUpCount
-                handleLimitedAccessBanner(isHidden: true)
                 showLimitedAccessPopUp()
-            } else{
-                handleLimitedAccessBanner(isHidden: false)
             }
         } else{
             showLimitedAccessPopUp()
