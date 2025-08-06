@@ -53,7 +53,7 @@ extension TLPhotosPickerLogDelegate {
 
 
 public struct TLPhotosPickerConfigure {
-    public var limitedPhotoAccessLabelTitle = "You have given access to limited photos, to view all photos from gallery."
+    public var limitedPhotoAccessLabelTitle = "You have given Flipkart access to only selected photos/videos."
     public var changePermissionText = "Manage"
     public var accessPhotosTitle = "Flipkart” would like to access your photos"
     public var allowPhotosSubtitle = "Please allow us to access your phone’s photo gallery for a better shopping experience"
